@@ -55,11 +55,15 @@ CFragmentCache::CFragmentCache()
 
 	mFragments.reserve( 2000 );
 
+	#ifdef DAEDALUS_CTR
+	mpCodeBufferManager = nullptr;
+#else
 	mpCodeBufferManager = CCodeBufferManager::Create();
 	if(mpCodeBufferManager != nullptr)
 	{
 		mpCodeBufferManager->Initialise();
 	}
+#endif
 }
 
 //*************************************************************************************
@@ -69,7 +73,7 @@ CFragmentCache::~CFragmentCache()
 {
 	Clear();
 
-	mpCodeBufferManager->Finalise();
+	if (mpCodeBufferManager) mpCodeBufferManager->Finalise();
 	delete mpCodeBufferManager;
 }
 
@@ -297,7 +301,7 @@ void CFragmentCache::Clear()
 
 	mCacheCoverage.Reset();
 
-	mpCodeBufferManager->Reset();
+	if (mpCodeBufferManager) mpCodeBufferManager->Reset();
 }
 
 //*************************************************************************************
@@ -457,3 +461,22 @@ void CFragmentCacheCoverage::Reset( )
 {
 	memset( mCacheCoverage, 0, sizeof( mCacheCoverage ) );
 }
+
+#ifdef DAEDALUS_CTR
+CCodeBufferManager *CFragmentCache::GetCodeBufferManager()
+{
+    if (!mpCodeBufferManager)
+    {
+        CCodeBufferManager *manager = CCodeBufferManager::Create();
+        if (!manager) return nullptr;
+        if (!manager->Initialise())
+        {
+            manager->Finalise();
+            delete manager;
+            return nullptr;
+        }
+        mpCodeBufferManager = manager;
+    }
+    return mpCodeBufferManager;
+}
+#endif

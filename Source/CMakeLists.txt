@@ -9,7 +9,7 @@
 #Options
 # PSP_RELEASE - Builds PSP Release
 
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 14)
 project (DaedalusX64)
 
@@ -235,6 +235,8 @@ if (VITA_RELEASE)
 	#target_link_libraries(sysGL GL GLEW -lSDL2 dl X11  )
 
 	# Build Daedalus Lib
+	list(REMOVE_ITEM BUILD HLEAudio/AudioBuffer.cpp)
+	list(APPEND BUILD SysCTR/HLEAudio/AudioBufferCTR.cpp)
 	add_library(daedalus STATIC
 		${BUILD}
 		${DEBUG_ONLY}
@@ -248,8 +250,8 @@ if (VITA_RELEASE)
 	)
 
 	target_link_libraries(daedalus
-		z
 		png
+		z
 	)
 
 	# Build and Link Executable
@@ -311,15 +313,24 @@ if (VITA_RELEASE)
 endif (VITA_RELEASE)
 
 if (CTR_RELEASE)
-	message("N3DS Release Build..")
+	message("Nintendo 3DS build")
+	set(CTR_DEPS "${CMAKE_CURRENT_SOURCE_DIR}/../.deps/prefix" CACHE PATH "Private CTR dependency prefix")
 
-	set(CMAKE_EXE_LINKER_FLAGS "-L${DEVKITPRO}/libctru/lib -L${DEVKITPRO}/picaGL/lib -L${DEVKITPRO}/portlibs/3ds/lib -specs=3dsx.specs -Wl,--gc-sections")
+	set(CMAKE_EXE_LINKER_FLAGS "-L${DEVKITPRO}/libctru/lib -L${CTR_DEPS}/lib -L${DEVKITPRO}/picaGL/lib -L${DEVKITPRO}/portlibs/3ds/lib -specs=3dsx.specs -Wl,--gc-sections")
 
-	include_directories(${DEVKITPRO}/libctru/include ${DEVKITPRO}/picaGL/include ${DEVKITPRO}/portlibs/3ds/include)
+	include_directories(${CTR_DEPS}/include ${DEVKITPRO}/libctru/include ${DEVKITPRO}/picaGL/include ${DEVKITPRO}/portlibs/3ds/include)
 
-	add_definitions("-DDAEDALUS_CTR" "-D_3DS")
+    execute_process(COMMAND git rev-parse --short=12 HEAD
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+        OUTPUT_VARIABLE EPD_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(NOT EPD_REVISION)
+        set(EPD_REVISION "unknown")
+    endif()
+    add_definitions("-DDAEDALUS_CTR" "-D__3DS__" "-DDAEDALUS_BUILD_REVISION=\"${EPD_REVISION}\"")
 
 	# Build Daedalus Lib
+	list(REMOVE_ITEM BUILD HLEAudio/AudioBuffer.cpp)
+	list(APPEND BUILD SysCTR/HLEAudio/AudioBufferCTR.cpp)
 	add_library(daedalus STATIC
 		${BUILD}
 		${DEBUG_ONLY}
@@ -333,8 +344,8 @@ if (CTR_RELEASE)
 	)
 
 	target_link_libraries(daedalus
-		z
 		png
+		z
 	)
 
 	# Build and Link Executable
@@ -357,40 +368,35 @@ if (CTR_RELEASE)
 		-lm
 	)
 
-	set(APP_TITLE "${PROJECT_NAME}")
-	set(APP_DESCRIPTION "${PROJECT_NAME} port for 3DS")
-	set(APP_AUTHOR "MasterFeizz")
-
-	set(APP_SMDH "${PROJECT_SOURCE_DIR}/SysCTR/Resources/daedalus.smdh")
-	set(APP_BANNER "${PROJECT_SOURCE_DIR}/SysCTR/Resources/banner.bnr")
-	set(APP_AUDIO "${PROJECT_SOURCE_DIR}/SysCTR/Resources/audio_silent.wav")
-	set(APP_RSF "${PROJECT_SOURCE_DIR}/SysCTR/Resources/template.rsf")
-	set(APP_ROMFS_DIR "${PROJECT_SOURCE_DIR}/SysCTR/Resources/RomFS")
-	set(APP_ROMFS_BIN "${PROJECT_SOURCE_DIR}/SysCTR/Resources/romfs.bin")
-
-	add_custom_command(
-		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.3dsx
-		COMMAND 3dsxtool ${PROJECT_NAME}.elf ${PROJECT_NAME}.3dsx --romfs=${APP_ROMFS_DIR} --smdh=${APP_SMDH}
-		DEPENDS ${PROJECT_NAME}.elf
-	)
-
-	add_custom_command(
-		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.cia
-		COMMAND makerom	-f cia
-				-target t
-				-exefslogo
-				-o ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.cia
-				-elf ${PROJECT_NAME}.elf
-				-rsf ${APP_RSF}
-				-banner ${APP_BANNER}
-				-icon ${APP_SMDH}
-				-romfs ${APP_ROMFS_BIN}
-		DEPENDS ${PROJECT_NAME}.elf ${APP_RSF}
-    )
-
-	add_custom_target( N3DS ALL
-		DEPENDS ${PROJECT_NAME}.3dsx
-				${PROJECT_NAME}.cia
-	)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Map,${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.map")
+    find_program(CTR_3DSXTOOL 3dsxtool HINTS "${DEVKITPRO}/tools/bin")
+    find_program(CTR_SMDHTOOL smdhtool HINTS "${DEVKITPRO}/tools/bin")
+    find_program(CTR_MKROMFS mkromfs3ds HINTS "${DEVKITPRO}/tools/bin")
+    find_program(CTR_MAKEROM makerom)
+    set(APP_RESOURCES "${PROJECT_SOURCE_DIR}/SysCTR/Resources")
+    set(APP_SMDH "${CMAKE_CURRENT_BINARY_DIR}/DaedalusX64-EPD.smdh")
+    set(APP_ROMFS_BIN "${CMAKE_CURRENT_BINARY_DIR}/DaedalusX64-EPD.romfs")
+    file(GLOB_RECURSE APP_ROMFS_FILES "${APP_RESOURCES}/romfs/*")
+    add_custom_command(OUTPUT "${APP_SMDH}"
+        COMMAND "${CTR_SMDHTOOL}" --create "DaedalusX64 EPD"
+            "Development build dev1 - Nintendo 64 emulator"
+            "MasterFeizz / DaedalusX64 / EstebanPdN"
+            "${APP_RESOURCES}/icon.png" "${APP_SMDH}"
+        DEPENDS "${APP_RESOURCES}/icon.png" VERBATIM)
+    add_custom_command(OUTPUT "${APP_ROMFS_BIN}"
+        COMMAND "${CTR_MKROMFS}" "${APP_RESOURCES}/romfs" "${APP_ROMFS_BIN}"
+        DEPENDS ${APP_ROMFS_FILES} VERBATIM)
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/DaedalusX64-EPD.3dsx"
+        COMMAND "${CTR_3DSXTOOL}" "${PROJECT_NAME}.elf" "DaedalusX64-EPD.3dsx"
+            "--romfs=${APP_ROMFS_BIN}" "--smdh=${APP_SMDH}"
+        DEPENDS ${PROJECT_NAME}.elf "${APP_ROMFS_BIN}" "${APP_SMDH}" VERBATIM)
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/DaedalusX64-EPD.cia"
+        COMMAND "${CTR_MAKEROM}" -f cia -target t -exefslogo
+            -o "DaedalusX64-EPD.cia" -elf "${PROJECT_NAME}.elf"
+            -rsf "${APP_RESOURCES}/template.rsf"
+            -banner "${APP_RESOURCES}/banner.bnr" -icon "${APP_SMDH}" "-DAPP_ROMFS=${APP_RESOURCES}/romfs"
+        DEPENDS ${PROJECT_NAME}.elf "${APP_RESOURCES}/template.rsf"
+            "${APP_RESOURCES}/banner.bnr" ${APP_ROMFS_FILES} "${APP_SMDH}" VERBATIM)
+    add_custom_target(N3DS ALL DEPENDS "DaedalusX64-EPD.3dsx" "DaedalusX64-EPD.cia")
 
 endif (CTR_RELEASE)

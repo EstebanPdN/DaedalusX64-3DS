@@ -18,6 +18,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "stdafx.h"
+#include "System/System.h"
+#ifdef DAEDALUS_CTR
+extern "C" void CTR_WaitForAudioTask();
+#endif
 
 #include "Core/Memory.h"
 #include "Core/CPU.h"
@@ -77,7 +81,7 @@ static bool InitAudioPlugin()
 		}
 		gAudioPlugin = audio_plugin;
 	}
-	return true;
+	return gAudioPlugin != NULL;
 }
 
 static bool InitGraphicsPlugin()
@@ -95,7 +99,7 @@ static bool InitGraphicsPlugin()
 		}
 		gGraphicsPlugin = graphics_plugin;
 	}
-	return true;
+	return gGraphicsPlugin != NULL;
 }
 
 static void DisposeGraphicsPlugin()
@@ -219,8 +223,12 @@ static const RomEntityEntry gRomInitTable[] =
 #endif
 };
 
+static u32 gInitializedSystems = 0;
+static u32 gOpenedRomEntries = 0;
+
 bool System_Init()
 {
+	if (gInitializedSystems) return true;
 	for(u32 i = 0; i < ARRAYSIZE(gSysInitTable); i++)
 	{
 		const SysEntityEntry & entry = gSysInitTable[i];
@@ -239,8 +247,10 @@ bool System_Init()
 				#ifdef DAEDALUS_DEBUG_CONSOLE
 			DBGConsole_Msg(0, "==>Initialize %s Failed", entry.name);
 			#endif
+			System_Finalize();
 			return false;
 		}
+		gInitializedSystems = i + 1;
 	}
 
 	return true;
@@ -248,6 +258,8 @@ bool System_Init()
 
 bool System_Open(const char * filename)
 {
+	if (!filename || strlen(filename) >= sizeof(g_ROM.mFileName)) return false;
+	System_Close();
 	strcpy(g_ROM.mFileName, filename);
 	for(u32 i = 0; i < ARRAYSIZE(gRomInitTable); i++)
 	{
@@ -263,8 +275,10 @@ bool System_Open(const char * filename)
 				#ifdef DAEDALUS_DEBUG_CONSOLE
 			DBGConsole_Msg(0, "==>Open %s [RFAILED]", entry.name);
 			#endif
+			System_Close();
 			return false;
 		}
+		gOpenedRomEntries = i + 1;
 	}
 
 	return true;
@@ -272,9 +286,12 @@ bool System_Open(const char * filename)
 
 void System_Close()
 {
-	for(s32 i = ARRAYSIZE(gRomInitTable) - 1 ; i >= 0; i--)
+#ifdef DAEDALUS_CTR
+	CTR_WaitForAudioTask(); // Finish guest-memory writes before saves and ROM resources are closed.
+#endif
+	while (gOpenedRomEntries > 0)
 	{
-		const RomEntityEntry & entry = gRomInitTable[i];
+		const RomEntityEntry & entry = gRomInitTable[--gOpenedRomEntries];
 
 		if (entry.close == NULL)
 			continue;
@@ -287,9 +304,10 @@ void System_Close()
 
 void System_Finalize()
 {
-	for(s32 i = ARRAYSIZE(gSysInitTable) - 1; i >= 0; i--)
+	System_Close();
+	while (gInitializedSystems > 0)
 	{
-		const SysEntityEntry & entry = gSysInitTable[i];
+		const SysEntityEntry & entry = gSysInitTable[--gInitializedSystems];
 
 		if (entry.final == NULL)
 			continue;

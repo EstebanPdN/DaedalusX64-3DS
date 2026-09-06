@@ -85,7 +85,11 @@ public:
 
 	u32						GetMemoryUsage() const					{ return mMemoryUsage; }
 
-	CCodeBufferManager *	GetCodeBufferManager() const			{ return mpCodeBufferManager; }
+	#ifdef DAEDALUS_CTR
+	CCodeBufferManager * GetCodeBufferManager();
+#else
+	CCodeBufferManager * GetCodeBufferManager() const { return mpCodeBufferManager; }
+#endif
 
 	bool					ShouldInvalidateOnWrite( u32 address, u32 length ) const;
 

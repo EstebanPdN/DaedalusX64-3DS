@@ -711,6 +711,10 @@ void CPU_HANDLE_COUNT_INTERRUPT()
 		break;
 	case CPU_EVENT_AUDIO:
 		{
+#ifdef DAEDALUS_CTR
+			extern void CTR_WaitForAudioTask();
+			CTR_WaitForAudioTask();
+#endif
 			u32 status {Memory_SP_SetRegisterBits(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_YIELDED|SP_STATUS_BROKE|SP_STATUS_HALT)};
 			if( status & SP_STATUS_INTR_BREAK )
 				CPU_AddEvent(4000, CPU_EVENT_SPINT);

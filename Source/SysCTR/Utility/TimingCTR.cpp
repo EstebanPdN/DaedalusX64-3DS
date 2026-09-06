@@ -22,13 +22,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <3ds.h>
 
-#define TICKS_PER_SEC 268123480.0
+#include "TimeConversions.h"
 
 namespace NTiming {
 
 bool GetPreciseFrequency( u64 * p_freq )
 {
-	*p_freq = TICKS_PER_SEC;
+	*p_freq = CTRTime::TicksPerSecond;
 	return true;
 }
 
@@ -40,8 +40,7 @@ bool GetPreciseTime( u64 * p_time )
 
 u64 ToMilliseconds( u64 ticks )
 {
-	//?
-	return (ticks * 1000 * 1000) / TICKS_PER_SEC;
+	return CTRTime::TicksToMilliseconds(ticks);
 }
 
 } // NTiming

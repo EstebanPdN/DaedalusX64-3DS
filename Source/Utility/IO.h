@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #if defined( DAEDALUS_PSP )
 #include <pspiofilemgr.h>
 #elif defined( DAEDALUS_CTR )
-#define DAEDALUS_CTR_PATH(p)	"sdmc:/3ds/DaedalusX64/" p
+#define DAEDALUS_CTR_PATH(p)	"sdmc:/3ds/DaedalusX64-EPD/" p
 #endif
 
 #include <string.h>

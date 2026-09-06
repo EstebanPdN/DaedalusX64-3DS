@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "Utility/Timing.h"
 
 #include <3ds.h>
+#include <new>
+#include "TimeConversions.h"
 
 static const int	gThreadPriorities[ TP_NUM_PRIORITIES ] =
 {
@@ -49,45 +51,49 @@ struct SDaedThreadDetails
 static void StartThreadFunc(  void *argp )
 {
 	SDaedThreadDetails * thread_details( static_cast< SDaedThreadDetails * >( argp ) );
-	thread_details->ThreadFunction( thread_details->Argument );
+	const SDaedThreadDetails details = *thread_details;
+	delete thread_details;
+	details.ThreadFunction(details.Argument);
 }
 
 ThreadHandle CreateThread( const char * name, DaedThread function, void * argument )
 {
-	SDaedThreadDetails thread_details( function, argument );
+	SDaedThreadDetails *thread_details = new (std::nothrow) SDaedThreadDetails(function, argument);
+	if (!thread_details) return kInvalidThreadHandle;
 
-	Thread thid = threadCreate(StartThreadFunc, &thread_details, 0x10000, gThreadPriorities[TP_NORMAL], -2, false);
+	Thread thid = threadCreate(StartThreadFunc, thread_details, 0x10000, gThreadPriorities[TP_NORMAL], -2, false);
 
+	if (!thid) delete thread_details;
 	return thid ? (ThreadHandle)thid : kInvalidThreadHandle;
 }
 
-void SetThreadPriority( s32 handle, EThreadPriority pri )
+void SetThreadPriority( ThreadHandle handle, EThreadPriority pri )
 {
 	// Nothing to do
 }
 
-void ReleaseThreadHandle( s32 handle )
+void ReleaseThreadHandle( ThreadHandle handle )
 {
 	threadFree((Thread)handle);
 }
 
 // Wait the specified time for the thread to finish.
 // Returns false if the thread didn't terminate
-bool JoinThread( s32 handle, s32 timeout )
+bool JoinThread( ThreadHandle handle, s32 timeout )
 {
-	Result ret = threadJoin((Thread)handle, timeout);
+	Result ret = threadJoin((Thread)handle, timeout < 0 ? U64_MAX : CTRTime::MillisecondsToNanoseconds(timeout));
 
 	return (ret >= 0);
 }
 
 void ThreadSleepMs( u32 ms )
 {
-	svcSleepThread( ms * 1000 );		// Delay is specified in microseconds
+	svcSleepThread(CTRTime::MillisecondsToNanoseconds(ms));
 }
 
 void ThreadSleepTicks( u32 ticks )
 {
-	svcSleepThread( NTiming::ToMilliseconds(ticks) * 1000 );		// Delay is specified in ticks
+	svcSleepThread(CTRTime::TicksToNanoseconds(ticks));
 }
 
 void ThreadYield()

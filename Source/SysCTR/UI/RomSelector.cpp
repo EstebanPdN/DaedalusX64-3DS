@@ -24,7 +24,7 @@
 
 #include "Graphics/NativeTexture.h"
 
-#define DAEDALUS_CTR_PATH(p)	"sdmc:/3ds/DaedalusX64/" p
+extern bool shouldQuit;
 
 struct SRomInfo
 {
@@ -58,7 +58,7 @@ static std::vector<SRomInfo> PopulateRomList()
 
 			if(IsRomfilename( rom_filename ))
 			{
-				SRomInfo info;
+				SRomInfo info {};
 
 				full_path = DAEDALUS_CTR_PATH("Roms/");
 				full_path += rom_filename;
@@ -83,7 +83,7 @@ static std::vector<SRomInfo> PopulateRomList()
 				}
 				else
 				{
-					info.mSettings.GameName = "Unknown";
+					continue; // Invalid headers must not become launchable entries.
 				} 
 
 				roms.push_back(info);
@@ -122,34 +122,21 @@ std::string UI::DrawRomSelector()
 
 	UI::RestoreRenderState();
 	
-	if(roms.empty())
-	{
-		pglExit();
-		gfxExit();
-
-		gfxInitDefault();
-		consoleInit(GFX_BOTTOM, NULL);
-
-		printf("No ROMs found!\n\n");
-		printf("Add ROMs to sdmc:/3ds/DaedalusX64/Roms\n\n\n");
-		printf("Press START to exit\n");
-
-		while(aptMainLoop())
-		{
-			hidScanInput();
-
-			if(hidKeysDown() == KEY_START)
-				exit(1);
-		}
-	}
+    if (roms.empty())
+    {
+        UI::ShowMessage("No ROMs found", "Add your ROMs to:\nsdmc:/3ds/DaedalusX64-EPD/Roms/\n\nThis build contains no games.");
+        return {};
+    }
+    currentItem = std::max(0, std::min(currentItem, int(roms.size()) - 1));
 
 	bool selection_changed = true;
 
-	while(aptMainLoop() && !selected)
+	while(!shouldQuit && aptMainLoop() && !selected)
 	{
 
 		gspWaitForVBlank();
 		hidScanInput();
+		if (hidKeysDown() & KEY_START) { shouldQuit = true; break; }
 
 		pglSelectScreen(GFX_BOTTOM, GFX_LEFT);
 
@@ -196,7 +183,7 @@ std::string UI::DrawRomSelector()
 		
 			ImGui::SetNextWindowPos(  ImVec2(0, 0) );
 			ImGui::SetNextWindowSize( ImVec2(400, 240) );
-			ImGui::Begin("Rom Selection", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse );
+			ImGui::Begin("DaedalusX64 EPD - dev1 " DAEDALUS_BUILD_REVISION, nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse );
 
 			ImGui::Text("Game Name: %s", roms.at(currentItem).mSettings.GameName.c_str());
 			ImGui::Text( "Country: %s", ROM_GetCountryNameFromID( roms.at(currentItem).mRomID.CountryID ) );
@@ -226,7 +213,7 @@ std::string UI::DrawRomSelector()
 
 			while( UI::DrawOptionsPage(roms.at(currentItem).mRomID) )
 			{
-				aptMainLoop();
+				if (!aptMainLoop()) { shouldQuit = true; break; }
 				gspWaitForVBlank();
 				pglSwapBuffers();
 				hidScanInput();
@@ -239,5 +226,6 @@ std::string UI::DrawRomSelector()
 
 	ImGui_Impl3DS_EnableGamepad(false);
 
+	if (!selected || shouldQuit) return {};
 	return roms.at(currentItem).mFilename;
 }

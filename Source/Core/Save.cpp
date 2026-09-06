@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "Debug/DBGConsole.h"
 #include "Debug/Dump.h"
 #include "Utility/IO.h"
+#ifdef DAEDALUS_CTR
+#include "Utility/TransactionalFile.h"
+#endif
 
 static void InitMempackContent();
 
@@ -71,7 +74,11 @@ bool Save_Reset()
 	{
 		Dump_GetSaveDirectory(gSaveFileName, g_ROM.mFileName, ext);
 
-		FILE * fp = fopen(gSaveFileName, "rb");
+		#ifdef DAEDALUS_CTR
+		FILE *fp = SaveFile::OpenForRead(gSaveFileName);
+#else
+		FILE *fp = fopen(gSaveFileName, "rb");
+#endif
 		if (fp != nullptr)
 		{
 			#ifdef DAEDALUS_DEBUG_CONSOLE
@@ -83,7 +90,8 @@ bool Save_Reset()
 
 			for (u32 d = 0; d < gSaveSize; d += sizeof(buffer))
 			{
-				fread(buffer, sizeof(buffer), 1, fp);
+				memset(buffer, 0, sizeof(buffer));
+				fread(buffer, 1, sizeof(buffer), fp);
 
 				for (u32 i = 0; i < sizeof(buffer); i++)
 				{
@@ -103,7 +111,11 @@ bool Save_Reset()
 	// init mempack
 	{
 		Dump_GetSaveDirectory(gMempackFileName, g_ROM.mFileName, ".mpk");
-		FILE * fp = fopen(gMempackFileName, "rb");
+		#ifdef DAEDALUS_CTR
+		FILE *fp = SaveFile::OpenForRead(gMempackFileName);
+#else
+		FILE *fp = fopen(gMempackFileName, "rb");
+#endif
 		if (fp != nullptr)
 		{
 			#ifdef DAEDALUS_DEBUG_CONSOLE
@@ -144,6 +156,23 @@ void Save_MarkMempackDirty()
 
 void Save_Flush(bool force)
 {
+#ifdef DAEDALUS_CTR
+    if ((gSaveDirty || force) && gSaveSize && g_ROM.settings.SaveType != SAVE_TYPE_UNKNOWN)
+    {
+        if (SaveFile::Write(gSaveFileName, static_cast<const u8 *>(g_pMemoryBuffers[MEM_SAVE]), gSaveSize, U8_TWIDDLE))
+            gSaveDirty = false;
+        else
+            fprintf(stderr, "Save write failed; previous data preserved: %s\n", gSaveFileName);
+    }
+    if (gMempackDirty || force)
+    {
+        if (SaveFile::Write(gMempackFileName, static_cast<const u8 *>(g_pMemoryBuffers[MEM_MEMPACK]), MemoryRegionSizes[MEM_MEMPACK]))
+            gMempackDirty = false;
+        else
+            fprintf(stderr, "Mempak write failed; previous data preserved: %s\n", gMempackFileName);
+    }
+#else
+
 	if ((gSaveDirty || force) && g_ROM.settings.SaveType != SAVE_TYPE_UNKNOWN)
 	{
 		#ifdef DAEDALUS_DEBUG_CONSOLE
@@ -183,6 +212,7 @@ void Save_Flush(bool force)
 		}
 		gMempackDirty = false;
 	}
+#endif
 }
 
 // Mempack Stuffs

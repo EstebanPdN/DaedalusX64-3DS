@@ -23,6 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define HLEAUDIO_AUDIOBUFFER_H_
 
 #include "Utility/DaedalusTypes.h"
+#ifdef DAEDALUS_CTR
+#include "Utility/SpscRing.h"
+#endif
 
 struct Sample
 {
@@ -46,12 +49,21 @@ public:
 
 	u32				GetNumBufferedSamples() const;
 
+#ifdef DAEDALUS_CTR
+    void Cancel();
+    void Reset();
+    bool IsValid() const { return mRing.IsValid(); }
+private:
+    SpscRing<Sample> mRing;
+    std::atomic<bool> mStopped;
+#else
 private:
 	Sample *		mBufferBegin;
 	Sample *		mBufferEnd;
 
 	const Sample * volatile	mReadPtr;
 	Sample * volatile		mWritePtr;
+#endif
 };
 
 

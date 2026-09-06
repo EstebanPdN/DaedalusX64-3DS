@@ -362,7 +362,13 @@ void	CPU_DumpFragmentCache()
 //*****************************************************************************
 void CPU_CreateAndAddFragment()
 {
-	CFragment * p_fragment( gTraceRecorder.CreateFragment( gFragmentCache.GetCodeBufferManager() ) );
+	CCodeBufferManager *manager = gFragmentCache.GetCodeBufferManager();
+	if (!manager)
+	{
+		CPU_Halt("Cannot allocate executable JIT memory");
+		return;
+	}
+	CFragment * p_fragment(gTraceRecorder.CreateFragment(manager));
 
 	if( p_fragment != nullptr )
 	{

@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "stdafx.h"
 
 #include <3ds.h>
+#include <atomic>
 
 #include "AudioPluginCTR.h"
 #include "AudioOutput.h"
@@ -46,18 +47,43 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern bool isN3DS;
 // FIXME: Hack!
 
-static bool _runThread = false;
+static std::atomic<bool> runThread(false);
+static std::atomic<bool> audioBusy(false);
+static Thread asyncThread = nullptr;
+static Handle audioRequest = 0;
+static Handle audioFinished = 0;
 
-static Thread asyncThread;
-static Handle audioRequest;
-
-static void asyncProcess(void *arg)
+extern "C" void CTR_WaitForAudioTask()
 {
-	while(_runThread)
-	{
-		svcWaitSynchronization(audioRequest, U64_MAX);
-		if(_runThread) Audio_Ucode();
-	}
+    while (audioBusy.load(std::memory_order_acquire))
+        svcWaitSynchronization(audioFinished, U64_MAX);
+}
+
+static void asyncProcess(void *)
+{
+    for (;;)
+    {
+        svcWaitSynchronization(audioRequest, U64_MAX);
+        if (!runThread.load(std::memory_order_acquire)) break;
+        Audio_Ucode();
+        audioBusy.store(false, std::memory_order_release);
+        svcSignalEvent(audioFinished);
+    }
+}
+
+static void StopAsyncAudio()
+{
+    if (asyncThread)
+    {
+        CTR_WaitForAudioTask();
+        runThread.store(false, std::memory_order_release);
+        svcSignalEvent(audioRequest);
+        threadJoin(asyncThread, U64_MAX);
+        threadFree(asyncThread);
+        asyncThread = nullptr;
+    }
+    if (audioRequest) { svcCloseHandle(audioRequest); audioRequest = 0; }
+    if (audioFinished) { svcCloseHandle(audioFinished); audioFinished = 0; }
 }
 
 //*****************************************************************************
@@ -73,13 +99,16 @@ CAudioPluginCTR::CAudioPluginCTR()
 :	mAudioOutput( new AudioOutput )
 {
 
-	if(isN3DS)
-	{
-		_runThread = true;
-
-		svcCreateEvent(&audioRequest, RESET_ONESHOT);
-		asyncThread = threadCreate(asyncProcess, 0, (8 * 1024), 0x18, 2, true);
-	}
+    if (isN3DS)
+    {
+        if (R_SUCCEEDED(svcCreateEvent(&audioRequest, RESET_ONESHOT)) &&
+            R_SUCCEEDED(svcCreateEvent(&audioFinished, RESET_STICKY)))
+        {
+            runThread.store(true, std::memory_order_release);
+            asyncThread = threadCreate(asyncProcess, nullptr, 8 * 1024, 0x18, 2, false);
+        }
+        if (!asyncThread) StopAsyncAudio(); // Synchronous fallback remains available.
+    }
 }
 
 //*****************************************************************************
@@ -87,13 +116,7 @@ CAudioPluginCTR::CAudioPluginCTR()
 //*****************************************************************************
 CAudioPluginCTR::~CAudioPluginCTR()
 {
-	if(isN3DS)
-	{
-		_runThread = false;
-		
-		svcSignalEvent(audioRequest);
-		threadJoin(asyncThread, U64_MAX);
-	}
+	StopEmulation();
 
 	delete mAudioOutput;
 }
@@ -128,6 +151,7 @@ bool		CAudioPluginCTR::StartEmulation()
 //*****************************************************************************
 void	CAudioPluginCTR::StopEmulation()
 {
+	StopAsyncAudio();
 	Audio_Reset();
 	mAudioOutput->StopAudio();
 }
@@ -136,7 +160,7 @@ void	CAudioPluginCTR::DacrateChanged( int SystemType )
 {
 //	printf( "DacrateChanged( %s )\n", (SystemType == ST_NTSC) ? "NTSC" : "PAL" );
 	u32 type = (u32)((SystemType == ST_NTSC) ? VI_NTSC_CLOCK : VI_PAL_CLOCK);
-	u32 dacrate = Memory_AI_GetRegister(AI_DACRATE_REG);
+	u32 dacrate = Memory_AI_GetRegister(AI_DACRATE_REG) & 0x3FFF;
 	u32	frequency = type / (dacrate + 1);
 
 	mAudioOutput->SetFrequency( frequency );
@@ -155,7 +179,8 @@ void	CAudioPluginCTR::LenChanged()
 		u32		address( Memory_AI_GetRegister(AI_DRAM_ADDR_REG) & 0xFFFFFF );
 		u32		length(Memory_AI_GetRegister(AI_LEN_REG));
 
-		mAudioOutput->AddBuffer( g_pu8RamBase + address, length );
+		if (address <= gRamSize && length <= gRamSize - address)
+			mAudioOutput->AddBuffer(g_pu8RamBase + address, length);
 	}
 	else
 	{
@@ -186,7 +211,10 @@ EProcessResult	CAudioPluginCTR::ProcessAList()
 			result = PR_COMPLETED;
 			break;
 		case APM_ENABLED_ASYNC:
-			if(isN3DS) {
+			if(asyncThread) {
+				CTR_WaitForAudioTask();
+				svcClearEvent(audioFinished);
+				audioBusy.store(true, std::memory_order_release);
 				svcSignalEvent(audioRequest);
 
 				CPU_AddEvent(RSP_AUDIO_INTR_CYCLES, CPU_EVENT_AUDIO);

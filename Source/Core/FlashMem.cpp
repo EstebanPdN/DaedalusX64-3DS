@@ -95,10 +95,12 @@ void Flash_DoCommand(u32 FlashRAM_Command)
 			case FLASHRAM_MODE_STATUS:
 				break;
 			case FLASHRAM_MODE_ERASE:
+				if (FlashRAM_Offset > MemoryRegionSizes[MEM_SAVE] - 128) break;
 				memset((u8*)g_pMemoryBuffers[MEM_SAVE] + FlashRAM_Offset, 0xFF, 128);
 				Save_MarkSaveDirty();
 				break;
 			case FLASHRAM_MODE_WRITE:
+				if (FlashRAM_Offset > MemoryRegionSizes[MEM_SAVE] - 128) break;
 				memcpy((u8*)g_pMemoryBuffers[MEM_SAVE] + FlashRAM_Offset, FlashBlock, 128);
 				Save_MarkSaveDirty();
 				break;

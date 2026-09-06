@@ -82,13 +82,15 @@ bool	CCodeBufferManagerARM::Initialise()
 	// mpSecondBuffer is currently unused
 
 	#ifdef DAEDALUS_CTR
-	mpBuffer = (u8*)memalign(4096, CODE_BUFFER_SIZE*2);
-	mpSecondBuffer = mpBuffer + CODE_BUFFER_SIZE;
-	if (mpBuffer == NULL || mpSecondBuffer == NULL)
+	mpBuffer = (u8*)memalign(4096, CODE_BUFFER_SIZE * 2);
+	if (!mpBuffer) return false;
+	if (_SetMemoryPermission(mpBuffer, CODE_BUFFER_SIZE * 2, 7) < 0)
+	{
+		free(mpBuffer);
+		mpBuffer = NULL;
 		return false;
-
-	_SetMemoryPermission((unsigned int*)mpBuffer, CODE_BUFFER_SIZE*2, 7);
-	//_SetMemoryPermission((unsigned int*)mpSecondBuffer, CODE_BUFFER_SIZE, 7);
+	}
+	mpSecondBuffer = mpBuffer + CODE_BUFFER_SIZE;
 	#endif
 
 	mBufferPtr = 0;
@@ -114,10 +116,10 @@ void	CCodeBufferManagerARM::Reset()
 //*****************************************************************************
 void	CCodeBufferManagerARM::Finalise()
 {
-	if (mpBuffer != NULL && mpSecondBuffer != NULL)
+	if (mpBuffer != NULL)
 	{
 		#ifdef DAEDALUS_CTR
-		_SetMemoryPermission((unsigned int*)mpBuffer, CODE_BUFFER_SIZE*2 / 4096, 3);
+		_SetMemoryPermission((unsigned int*)mpBuffer, CODE_BUFFER_SIZE*2, 3);
 		//_SetMemoryPermission((unsigned int*)mpSecondBuffer, CODE_BUFFER_SIZE / 4096, 3);
 		#endif
 		

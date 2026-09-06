@@ -23,3 +23,23 @@ rom.db
 .svn/
 Source/tmp
 Source/build
+# Local dependencies, builds, private data, and output artifacts
+/.deps/
+/build*/
+/Build/
+/Artifacts/
+/Diagnostics/
+*.cia
+*.3dsx
+*.elf
+*.map
+*.dmp
+*.z64
+*.n64
+*.v64
+*.sav
+*.sra
+*.fla
+*.mpk
+.DS_Store
+__pycache__/

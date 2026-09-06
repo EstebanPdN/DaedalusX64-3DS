@@ -1,0 +1,15 @@
+name: Source and stability checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  stability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source-only repository
+        run: python3 scripts/check_source_tree.py
+      - name: Run production-code tests with ASan and UBSan
+        run: scripts/test_host.sh

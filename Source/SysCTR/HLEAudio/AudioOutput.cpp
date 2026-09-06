@@ -46,70 +46,57 @@ static unsigned int waveBuf_id;
 
 bool audioOpen = false;
 
-static AudioOutput * ac;
 
 CAudioBuffer *mAudioBuffer;
 
-static void audioCallback(void *arg)
+static void audioCallback(void *)
 {
-	(void)arg;
-
-	u32 samples_written = 0;
-
-	if(waveBuf[waveBuf_id].status == NDSP_WBUF_DONE)
-	{
-		samples_written = mAudioBuffer->Drain( reinterpret_cast< Sample * >( waveBuf[waveBuf_id].data_pcm16 ), CTR_NUM_SAMPLES );
-
-		if(samples_written != 0)
-			waveBuf[waveBuf_id].nsamples = samples_written;
-
-		DSP_FlushDataCache(waveBuf[waveBuf_id].data_pcm16, CTR_NUM_SAMPLES << 2);
-		ndspChnWaveBufAdd( 0, &waveBuf[waveBuf_id] );
-
-		waveBuf_id = (waveBuf_id + 1) % CTR_BUFFER_COUNT;
-	}
-}
-
-static void AudioInit()
-{
-	if (ndspInit() != 0)
-		return;
-
-	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
-	ndspChnSetFormat(0, NDSP_FORMAT_STEREO_PCM16);
-	ndspChnSetRate(0, DESIRED_OUTPUT_FREQUENCY);
-
-	for(u32 i = 0; i < CTR_BUFFER_COUNT; i++)
-	{
-		waveBuf[i].data_vaddr = linearAlloc(CTR_NUM_SAMPLES * 4);
-		waveBuf[i].nsamples = CTR_NUM_SAMPLES;
-		waveBuf[i].status = 0;
-
-		memset(waveBuf[i].data_pcm16, 0, CTR_NUM_SAMPLES * 4);
-
-		ndspChnWaveBufAdd(0, &waveBuf[i]);
-	}
-
-	waveBuf_id = 0;
-
-	ndspSetCallback(&audioCallback, nullptr);
-
-	// Everything OK
-	audioOpen = true;
+    // Refill every completed buffer, using a fixed duration including silence.
+    for (u32 count = 0; count < CTR_BUFFER_COUNT; ++count)
+    {
+        if (waveBuf[waveBuf_id].status != NDSP_WBUF_DONE) break;
+        mAudioBuffer->Drain(reinterpret_cast<Sample *>(waveBuf[waveBuf_id].data_pcm16), CTR_NUM_SAMPLES);
+        waveBuf[waveBuf_id].nsamples = CTR_NUM_SAMPLES;
+        DSP_FlushDataCache(waveBuf[waveBuf_id].data_pcm16, CTR_NUM_SAMPLES * sizeof(Sample));
+        ndspChnWaveBufAdd(0, &waveBuf[waveBuf_id]);
+        waveBuf_id = (waveBuf_id + 1) % CTR_BUFFER_COUNT;
+    }
 }
 
 static void AudioExit()
 {
-	// Stop stream
-	ndspChnWaveBufClear(0);
-	ndspExit();
+    if (!audioOpen) return;
+    ndspSetCallback(nullptr, nullptr);
+    ndspChnWaveBufClear(0);
+    ndspExit(); // Joins the callback thread before freeing its data.
+    for (u32 i = 0; i < CTR_BUFFER_COUNT; ++i)
+    {
+        if (waveBuf[i].data_vaddr) linearFree((void *)waveBuf[i].data_vaddr);
+        waveBuf[i] = {};
+    }
+    audioOpen = false;
+}
 
-	for(u32 i = 0; i < CTR_BUFFER_COUNT; i++)
-	{
-		linearFree((void*)waveBuf[i].data_vaddr);
-	}
-
-	audioOpen = false;
+static bool AudioInit()
+{
+    if (!mAudioBuffer || !mAudioBuffer->IsValid() || R_FAILED(ndspInit())) return false;
+    audioOpen = true;
+    memset(waveBuf, 0, sizeof(waveBuf));
+    for (u32 i = 0; i < CTR_BUFFER_COUNT; ++i)
+    {
+        waveBuf[i].data_vaddr = linearAlloc(CTR_NUM_SAMPLES * sizeof(Sample));
+        if (!waveBuf[i].data_vaddr) { AudioExit(); return false; }
+        memset((void *)waveBuf[i].data_vaddr, 0, CTR_NUM_SAMPLES * sizeof(Sample));
+        DSP_FlushDataCache(waveBuf[i].data_vaddr, CTR_NUM_SAMPLES * sizeof(Sample));
+        waveBuf[i].nsamples = CTR_NUM_SAMPLES;
+    }
+    ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+    ndspChnSetFormat(0, NDSP_FORMAT_STEREO_PCM16);
+    ndspChnSetRate(0, DESIRED_OUTPUT_FREQUENCY);
+    waveBuf_id = 0;
+    for (u32 i = 0; i < CTR_BUFFER_COUNT; ++i) ndspChnWaveBufAdd(0, &waveBuf[i]);
+    ndspSetCallback(audioCallback, nullptr);
+    return true;
 }
 
 AudioOutput::AudioOutput()
@@ -123,6 +110,7 @@ AudioOutput::~AudioOutput( )
 {
 	StopAudio();
 	delete mAudioBuffer;
+	mAudioBuffer = nullptr;
 }
 
 void AudioOutput::SetFrequency( u32 frequency )
@@ -132,12 +120,13 @@ void AudioOutput::SetFrequency( u32 frequency )
 
 void AudioOutput::AddBuffer( u8 *start, u32 length )
 {
-	if (length == 0)
+	if (length < sizeof(Sample) * 2 || !start || !mFrequency)
 		return;
 
 	if (!mAudioPlaying)
 		StartAudio();
 
+	if (!mAudioPlaying) return;
 	u32 num_samples = length / sizeof( Sample );
 
 	u32 output_freq = DESIRED_OUTPUT_FREQUENCY;
@@ -160,11 +149,8 @@ void AudioOutput::StartAudio()
 	if (mAudioPlaying)
 		return;
 
-	mAudioPlaying = true;
-
-	ac = this;
-
-	AudioInit();
+	mAudioBuffer->Reset();
+	mAudioPlaying = AudioInit();
 }
 
 void AudioOutput::StopAudio()
@@ -172,7 +158,7 @@ void AudioOutput::StopAudio()
 	if (!mAudioPlaying)
 		return;
 
+	mAudioBuffer->Cancel();
 	mAudioPlaying = false;
-
 	AudioExit();
 }

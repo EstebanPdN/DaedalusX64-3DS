@@ -7,5 +7,7 @@
 namespace UI
 {
 	void Initialize();
+	void Shutdown();
+	void ShowMessage(const char *title, const char *message);
 	void RestoreRenderState();
 }

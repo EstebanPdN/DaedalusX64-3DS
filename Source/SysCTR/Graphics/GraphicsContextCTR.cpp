@@ -85,7 +85,10 @@ template<> bool CSingleton< CGraphicsContext >::Create()
 	DAEDALUS_ASSERT_Q(mpInstance == nullptr);
 #endif
 	mpInstance = new IGraphicsContext();
-	return mpInstance->Initialise();
+	if (mpInstance->Initialise()) return true;
+	delete mpInstance;
+	mpInstance = nullptr;
+	return false;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -114,6 +117,7 @@ IGraphicsContext::~IGraphicsContext()
 
 bool IGraphicsContext::Initialise()
 {
+	if (!gVertexBufferPtr || !gTexCoordBufferPtr || !gColorBufferPtr) return false;
 	mInitialised = true;
 
 	pglSelectScreen(GFX_TOP, GFX_LEFT);

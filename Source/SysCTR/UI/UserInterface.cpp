@@ -48,3 +48,34 @@ void UI::RestoreRenderState()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 }
+void UI::Shutdown()
+{
+    ImGui_ImplOpenGL2_Shutdown();
+    ImGui_Impl3DS_Shutdown();
+    ImGui::DestroyContext();
+}
+
+void UI::ShowMessage(const char *title, const char *message)
+{
+    RestoreRenderState();
+    while (aptMainLoop())
+    {
+        hidScanInput();
+        if (hidKeysDown() & (KEY_A | KEY_B | KEY_START)) break;
+        pglSelectScreen(GFX_BOTTOM, GFX_LEFT);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_Impl3DS_NewFrame(GFX_BOTTOM);
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(320, 240));
+        ImGui::Begin(title, nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+        ImGui::TextWrapped("%s", message);
+        ImGui::Separator();
+        ImGui::Text("Press A, B or START to continue.");
+        ImGui::End();
+        ImGui::Render();
+        ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+        glFinish();
+        pglSwapBuffers();
+        gspWaitForVBlank();
+    }
+}
