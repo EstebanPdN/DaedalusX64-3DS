@@ -1,4 +1,4 @@
-# DaedalusX64 EPD for Nintendo 3DS
+# DaedalusX64 EPdN for Nintendo 3DS
 
 An independent development fork maintained by **EstebanPdN**, based on [MasterFeizz's DaedalusX64-3DS](https://github.com/masterfeizz/DaedalusX64-3DS) and the [DaedalusX64 project](https://github.com/DaedalusX64/daedalus). This is a continuation of their emulator, not a new emulation core written from scratch.
 
