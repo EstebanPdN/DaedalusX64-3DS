@@ -19,7 +19,7 @@ Outputs are local to `build-3ds/`: `DaedalusX64-EPD.cia`, `DaedalusX64-EPD.3dsx`
 
 CIA packaging uses makerom's `RomFs.RootPath` builder to generate the IVFC tree from source files. The 3DSX uses `mkromfs3ds`'s raw filesystem image; these are deliberately different container forms of the same resource files. Neither format relies on the inherited prebuilt `romfs.bin` or `daedalus.smdh`.
 
-The HOME Menu title is `DaedalusX64 EPD`; title ID is `000400000DAED400`. The original memory-mode and New 3DS service/core permissions are retained. Title-ID differentiation is relative to the original port, not a global registry reservation.
+The HOME Menu title is `DaedalusX64 0.2`; title ID is `000400000DAED400`. The original memory-mode and New 3DS service/core permissions are retained. Title-ID differentiation is relative to the original port, not a global registry reservation.
 
 For a local installation bundle, copy the contents of `Data/` to `3ds/DaedalusX64-EPD/` on the SD card. Keep `Roms/`, `SaveGames/` and `SaveStates/` under that directory. Do not redistribute ROMs or DSP firmware. The local ELF and map should be retained for crash symbolication.
 
@@ -36,3 +36,5 @@ ctrtool --verify --contents=inspection/content build-3ds/DaedalusX64-EPD.cia
 CI intentionally runs source checks and host tests only, with no installer artifact upload and no release creation. Other inherited platform targets have not been revalidated by this CTR-focused work.
 
 The initial GCC 15.2 toolchain merges an ARMv7 ELF attribute from the discarded libgcc `_sync_dmb.o` member. Both the reference build and this fork exhibit it. Inspection of the retained executable found the ARMv6 CP15 barrier sequence and no ARMv7 barrier/MOVW/MOVT/bitfield instructions. An ELF attribute alone is therefore not a complete instruction-set audit. Application and private dependency compilation explicitly targets ARMv6K/VFP, with libpng NEON disabled.
+
+Version 0.2 adds manual dumps (see `DIAGNOSTIC-DUMPS.md`). Its CIA title-version counter is 1025, above the initial dev1 container counter of 1024, so it updates the existing installation. The user-facing version is 0.2; the SD directory remains `DaedalusX64-EPD` to preserve 0.1 data.

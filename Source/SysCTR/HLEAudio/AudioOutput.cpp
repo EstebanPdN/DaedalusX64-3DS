@@ -20,6 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "stdafx.h"
 #include "AudioOutput.h"
+#include "SysCTR/Diagnostics/DiagnosticsCTR.h"
+#include "SysCTR/Diagnostics/DumpSupport.h"
 
 #include <stdio.h>
 #include <new>
@@ -49,8 +51,30 @@ bool audioOpen = false;
 
 CAudioBuffer *mAudioBuffer;
 
+static CTRDump::CallbackGate diagnosticGate;
+static bool diagnosticWasPaused = false;
+
+void CTR_BeginDiagnosticAudioPause()
+{
+    diagnosticGate.Pause([] { svcSleepThread(50000); });
+    diagnosticWasPaused = audioOpen && ndspChnIsPaused(0);
+    if (audioOpen) ndspChnSetPaused(0, true);
+}
+
+void CTR_EndDiagnosticAudioPause()
+{
+    if (audioOpen) ndspChnSetPaused(0, diagnosticWasPaused);
+    diagnosticGate.Resume();
+}
+
+unsigned CTR_DiagnosticBufferedAudioSamples()
+{
+    return mAudioBuffer ? mAudioBuffer->GetNumBufferedSamples() : 0;
+}
+
 static void audioCallback(void *)
 {
+    if (!diagnosticGate.Enter()) return;
     // Refill every completed buffer, using a fixed duration including silence.
     for (u32 count = 0; count < CTR_BUFFER_COUNT; ++count)
     {
@@ -61,6 +85,7 @@ static void audioCallback(void *)
         ndspChnWaveBufAdd(0, &waveBuf[waveBuf_id]);
         waveBuf_id = (waveBuf_id + 1) % CTR_BUFFER_COUNT;
     }
+    diagnosticGate.Leave();
 }
 
 static void AudioExit()

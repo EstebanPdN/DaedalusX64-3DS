@@ -1,3 +1,4 @@
+#include "SysCTR/Diagnostics/DiagnosticsCTR.h"
 #include "UserInterface.h"
 #include "InGameMenu.h"
 #include "RomSelector.h"
@@ -136,6 +137,7 @@ std::string UI::DrawRomSelector()
 
 		gspWaitForVBlank();
 		hidScanInput();
+        CTRDiagnostics::PollMenu(hidKeysHeld());
 		if (hidKeysDown() & KEY_START) { shouldQuit = true; break; }
 
 		pglSelectScreen(GFX_BOTTOM, GFX_LEFT);
@@ -183,7 +185,7 @@ std::string UI::DrawRomSelector()
 		
 			ImGui::SetNextWindowPos(  ImVec2(0, 0) );
 			ImGui::SetNextWindowSize( ImVec2(400, 240) );
-			ImGui::Begin("DaedalusX64 EPD - dev1 " DAEDALUS_BUILD_REVISION, nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse );
+			ImGui::Begin("DaedalusX64 - 0.2 " DAEDALUS_BUILD_REVISION, nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse );
 
 			ImGui::Text("Game Name: %s", roms.at(currentItem).mSettings.GameName.c_str());
 			ImGui::Text( "Country: %s", ROM_GetCountryNameFromID( roms.at(currentItem).mRomID.CountryID ) );
@@ -217,6 +219,7 @@ std::string UI::DrawRomSelector()
 				gspWaitForVBlank();
 				pglSwapBuffers();
 				hidScanInput();
+                CTRDiagnostics::PollMenu(hidKeysHeld());
 			}
 
 			configure = false;

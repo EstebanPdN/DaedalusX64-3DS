@@ -2,7 +2,13 @@
 
 An independent development fork maintained by **EstebanPdN**, based on [MasterFeizz's DaedalusX64-3DS](https://github.com/masterfeizz/DaedalusX64-3DS) and the [DaedalusX64 project](https://github.com/DaedalusX64/daedalus). This is a continuation of their emulator, not a new emulation core written from scratch.
 
-**Status: dev1, source development and local hardware evaluation. No public binary release.** New 3DS/New 2DS XL is the primary target; Old 3DS/2DS remains an experimental, performance-limited target. Successful compilation and host tests do not establish game compatibility or real-console stability.
+**Status: 0.2, source development and local hardware evaluation. No public binary release.** New 3DS/New 2DS XL is the primary target; Old 3DS/2DS remains an experimental, performance-limited target. Successful compilation and host tests do not establish game compatibility or real-console stability.
+
+## New in 0.2
+
+Press **L + R + SELECT** during a game or in the ROM selector to save a diagnostic dump: screenshots, guest CPU/memory state and readable application memory. Captures go to `sdmc:/3ds/DaedalusX64-EPD/Dumps/`. The game pauses while writing. See [diagnostic dump contents, controls and limitations](docs/DIAGNOSTIC-DUMPS.md).
+
+The first development build (`dev1`) is referred to as **0.1**. Version 0.2 adds this diagnostics feature; it does not claim to implement every item in the longer-term roadmap.
 
 ## Initial changes
 
@@ -28,7 +34,7 @@ The repository contains source, inherited resource assets, build scripts and doc
 
 ## Local installation layout
 
-A local CIA uses title ID `000400000DAED400`, different from the original port's `000400000DAED300`, and the HOME Menu name **DaedalusX64 EPD**. The inherited banner artwork is retained with credit.
+A local CIA uses title ID `000400000DAED400`, different from the original port's `000400000DAED300`, and the HOME Menu name **DaedalusX64 0.2**. The inherited banner artwork is retained with credit.
 
 Copy the **contents** of `Data/` into `sdmc:/3ds/DaedalusX64-EPD/`. Put your own ROM files in `sdmc:/3ds/DaedalusX64-EPD/Roms/`. The app creates `SaveGames/` and `SaveStates/` there. DSP firmware is expected at `sdmc:/3ds/dspfirm.cdc`; firmware and ROM files are not included.
 

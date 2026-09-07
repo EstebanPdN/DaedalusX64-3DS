@@ -15,6 +15,7 @@
 #include "Utility/MemoryCTR.h"
 #include "UI/UserInterface.h"
 #include "UI/RomSelector.h"
+#include "SysCTR/Diagnostics/DiagnosticsCTR.h"
 
 bool isN3DS = false;
 bool shouldQuit = false;
@@ -37,7 +38,7 @@ static void StartupError(const char *message)
 {
     if (!graphicsReady) { gfxInitDefault(); graphicsReady = true; }
     consoleInit(GFX_BOTTOM, nullptr);
-    printf("DaedalusX64 EPD - development build\n\n%s\n\nPress START to exit.\n", message);
+    printf("DaedalusX64 0.2 - development build\n\n%s\n\nPress START to exit.\n", message);
     while (aptMainLoop())
     {
         hidScanInput();
@@ -50,7 +51,11 @@ void HandleEndOfFrame()
 {
     if (!aptMainLoop()) { shouldQuit = true; CPU_Halt("Application exit requested"); }
 }
-static void PollApplication(void *) { HandleEndOfFrame(); }
+static void PollApplication(void *)
+{
+    HandleEndOfFrame();
+    if (!shouldQuit) { hidScanInput(); CTRDiagnostics::PollInput(hidKeysHeld()); }
+}
 
 static bool Initialize()
 {
@@ -120,7 +125,12 @@ int main(int argc, char *argv[])
             UI::ShowMessage("ROM could not be opened", "Check the ROM and available memory.\nNo emulation was started.");
             continue;
         }
-        CPU_Run();
+        do
+        {
+            CPU_Run();
+            if (shouldQuit || !CTRDiagnostics::RunPending()) break;
+        } while (!shouldQuit);
+        CTRDiagnostics::Cancel();
         if (picaReady) glFinish();
         System_Close();
     }

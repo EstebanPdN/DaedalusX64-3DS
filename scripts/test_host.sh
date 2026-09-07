@@ -9,3 +9,7 @@ trap 'rm -rf "$out"' EXIT
   -I"$repo/Source" "$repo/tests/stability_tests.cpp" \
   "$repo/Source/SysCTR/HLEAudio/AudioBufferCTR.cpp" -o "$out/stability_tests"
 "$out/stability_tests" "$out/data"
+"${CXX:-clang++}" -std=c++17 -O1 -g -Wall -Wextra -pthread \
+  -fsanitize="${SANITIZERS:-address,undefined}" -fno-omit-frame-pointer \
+  -I"$repo/Source" "$repo/tests/diagnostics_tests.cpp" -o "$out/diagnostics_tests"
+"$out/diagnostics_tests" "$out/dumps"

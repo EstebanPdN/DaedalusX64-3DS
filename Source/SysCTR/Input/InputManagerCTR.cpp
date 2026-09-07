@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "stdafx.h"
 #include "Input/InputManager.h"
+#include "SysCTR/Diagnostics/DiagnosticsCTR.h"
 
 #include <stack>
 #include <string>
@@ -345,7 +346,7 @@ void IInputManager::GetState( OSContPad pPad[4] )
 	pPad[0].stick_x = circlepad.dx / 2;
 	pPad[0].stick_y = circlepad.dy / 2;
 
-	pPad[0].button = mpControllerConfig->GetN64ButtonsState( hidKeysHeld() );
+	pPad[0].button = mpControllerConfig->GetN64ButtonsState( CTRDiagnostics::PollInput(hidKeysHeld()) );
 }
 
 template<> bool	CSingleton< CInputManager >::Create()

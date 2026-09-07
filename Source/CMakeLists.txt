@@ -236,7 +236,7 @@ if (VITA_RELEASE)
 
 	# Build Daedalus Lib
 	list(REMOVE_ITEM BUILD HLEAudio/AudioBuffer.cpp)
-	list(APPEND BUILD SysCTR/HLEAudio/AudioBufferCTR.cpp)
+	list(APPEND BUILD SysCTR/HLEAudio/AudioBufferCTR.cpp SysCTR/Diagnostics/DiagnosticsCTR.cpp)
 	add_library(daedalus STATIC
 		${BUILD}
 		${DEBUG_ONLY}
@@ -330,7 +330,7 @@ if (CTR_RELEASE)
 
 	# Build Daedalus Lib
 	list(REMOVE_ITEM BUILD HLEAudio/AudioBuffer.cpp)
-	list(APPEND BUILD SysCTR/HLEAudio/AudioBufferCTR.cpp)
+	list(APPEND BUILD SysCTR/HLEAudio/AudioBufferCTR.cpp SysCTR/Diagnostics/DiagnosticsCTR.cpp)
 	add_library(daedalus STATIC
 		${BUILD}
 		${DEBUG_ONLY}
@@ -378,8 +378,8 @@ if (CTR_RELEASE)
     set(APP_ROMFS_BIN "${CMAKE_CURRENT_BINARY_DIR}/DaedalusX64-EPD.romfs")
     file(GLOB_RECURSE APP_ROMFS_FILES "${APP_RESOURCES}/romfs/*")
     add_custom_command(OUTPUT "${APP_SMDH}"
-        COMMAND "${CTR_SMDHTOOL}" --create "DaedalusX64 EPD"
-            "Development build dev1 - Nintendo 64 emulator"
+        COMMAND "${CTR_SMDHTOOL}" --create "DaedalusX64 0.2"
+            "Development build 0.2 - Nintendo 64 emulator"
             "MasterFeizz / DaedalusX64 / EstebanPdN"
             "${APP_RESOURCES}/icon.png" "${APP_SMDH}"
         DEPENDS "${APP_RESOURCES}/icon.png" VERBATIM)
@@ -391,7 +391,7 @@ if (CTR_RELEASE)
             "--romfs=${APP_ROMFS_BIN}" "--smdh=${APP_SMDH}"
         DEPENDS ${PROJECT_NAME}.elf "${APP_ROMFS_BIN}" "${APP_SMDH}" VERBATIM)
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/DaedalusX64-EPD.cia"
-        COMMAND "${CTR_MAKEROM}" -f cia -target t -exefslogo
+        COMMAND "${CTR_MAKEROM}" -f cia -target t -exefslogo -ver 1025
             -o "DaedalusX64-EPD.cia" -elf "${PROJECT_NAME}.elf"
             -rsf "${APP_RESOURCES}/template.rsf"
             -banner "${APP_RESOURCES}/banner.bnr" -icon "${APP_SMDH}" "-DAPP_ROMFS=${APP_RESOURCES}/romfs"

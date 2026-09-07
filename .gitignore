@@ -43,3 +43,6 @@ Source/build
 *.mpk
 .DS_Store
 __pycache__/
+
+/Dumps/
+/dump-*/

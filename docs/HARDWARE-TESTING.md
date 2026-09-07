@@ -19,3 +19,7 @@ Record date, exact console model, system/CFW version, launch format, source SHA,
 Run the matrix on a physical New 3DS/New 2DS XL and a physical Old 3DS/2DS. Reducing New 3DS clock speed is not an adequate Old 3DS substitute because memory and cache differ. Emulator-only testing cannot validate real DSP/GPU service behavior or performance.
 
 For a failure, retain the crash dump, exact local ELF/map, reproduction steps and whether the original build fails too. Do not label an upstream issue fixed until its reproduction passes on the affected model. A 30-frame/s game at correct speed is a different target from a 60-frame/s game; preserve PAL/NTSC behavior.
+
+## 0.2 diagnostics checks
+
+Use L + R + SELECT in the selector and in a running game. Verify one directory per complete press/release cycle, valid top/bottom BMP orientation, COMPLETE or explicit PARTIAL status, guest RAM sizes, and resumed controls/audio. Hold the chord for several seconds, release only SELECT and press it again, then release all buttons and repeat: only the fully rearmed chord should create another dump. Check the 400- and 800-pixel top-screen cases, a slow/full SD, and an ordinary menu exit immediately after a dump. Do not run destructive SD-error experiments using the sole copy of personal saves.

@@ -20,6 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // Stuff to handle Processor
 #include "stdafx.h"
+#ifdef DAEDALUS_CTR
+#include "SysCTR/Diagnostics/DiagnosticsCTR.h"
+#endif
 #include "CPU.h"
 
 #include <algorithm>
@@ -898,6 +901,15 @@ bool CPU_CheckStuffToDo()
 			gCPURunning = false;
 			return true;
 		}
+#ifdef DAEDALUS_CTR
+        else if (gCPUState.GetStuffToDo() & CPU_DIAGNOSTIC_DUMP)
+        {
+            gCPUState.ClearJob(CPU_DIAGNOSTIC_DUMP);
+            gCPURunning = false;
+            CTRDiagnostics::MarkCPUStopped();
+            return true;
+        }
+#endif
 		// Clear stuff_to_do?
 
 	return false;

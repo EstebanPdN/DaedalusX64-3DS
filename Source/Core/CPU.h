@@ -57,6 +57,9 @@ struct DBG_BreakPoint
 #define CPU_CHECK_INTERRUPTS				0x00000002
 #define CPU_STOP_RUNNING					0x00000008
 #define CPU_CHANGE_CORE						0x00000010
+#ifdef DAEDALUS_CTR
+#define CPU_DIAGNOSTIC_DUMP                  0x00000020
+#endif
 
 //*****************************************************************************
 // External declarations
